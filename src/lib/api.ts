@@ -212,14 +212,14 @@ export async function getDashboard(): Promise<DashboardResponse> {
   const userId = getUserId();
 
   if (token && userId) {
-    return apiFetch<DashboardResponse>('dashboard-detail', {
+    return apiFetch<DashboardResponse>('v2/dashboard-detail', {
       method: 'POST',
       requiresAuth: true,
       body: { user_id: userId },
     });
   }
 
-  return apiFetch<DashboardResponse>('dashboard-detail-data', {
+  return apiFetch<DashboardResponse>('v2/dashboard-detail-data', {
     method: 'POST',
     body: {},
   });

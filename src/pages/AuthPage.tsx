@@ -170,9 +170,22 @@ const AuthPage = () => {
                             </div>
                         )}
 
-                        <Button className="w-full h-12 rounded-xl bg-[#EAB308] hover:bg-[#FACC15] text-black font-bold text-lg shadow-lg shadow-[#EAB308]/20 transition-all hover:scale-[1.02] active:scale-95">
-                            {isLogin ? 'Sign In' : 'Create Account'}
-                            <ArrowRight className="ml-2 w-5 h-5" />
+                        <Button
+                            type="submit"
+                            disabled={isSubmitting}
+                            className="w-full h-12 rounded-xl bg-[#EAB308] hover:bg-[#FACC15] text-black font-bold text-lg shadow-lg shadow-[#EAB308]/20 transition-all hover:scale-[1.02] active:scale-95 disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:scale-100"
+                        >
+                            {isSubmitting ? (
+                                <>
+                                    <Loader2 className="mr-2 w-5 h-5 animate-spin" />
+                                    {isLogin ? 'Signing In...' : 'Creating Account...'}
+                                </>
+                            ) : (
+                                <>
+                                    {isLogin ? 'Sign In' : 'Create Account'}
+                                    <ArrowRight className="ml-2 w-5 h-5" />
+                                </>
+                            )}
                         </Button>
                     </form>
 
