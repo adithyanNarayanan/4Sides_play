@@ -1,69 +1,63 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Play, ThumbsUp, Share2, Star, Clock, Calendar, Globe, ArrowLeft, User, Film } from 'lucide-react';
-import { trendingMovies, top10Movies, categories, featuredMovie } from '@/data/movies';
-import { trendingTVShows, allTVShows } from '@/data/tvShows';
+import { useMovieDetails, useTVShowDetails } from '@/hooks/useApi';
+import { toMovie, toCast, toMovieList } from '@/lib/adapters';
 import MovieCard from '@/components/MovieCard';
 import VideoModal from '@/components/VideoModal';
-
-const allContent = [
-  featuredMovie,
-  ...trendingMovies,
-  ...top10Movies,
-  ...categories.flatMap(c => c.movies),
-  ...trendingTVShows,
-  ...allTVShows,
-];
-
-const uniqueContent = Array.from(new Map(allContent.map(m => [m.id, m])).values());
-
-const cast = [
-  { name: 'Leonardo DiCaprio', role: 'Dom Cobb', image: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=200&q=80' },
-  { name: 'Joseph Gordon-Levitt', role: 'Arthur', image: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=200&q=80' },
-  { name: 'Elliot Page', role: 'Ariadne', image: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=200&q=80' },
-  { name: 'Tom Hardy', role: 'Eames', image: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&q=80' },
-  { name: 'Ken Watanabe', role: 'Saito', image: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=200&q=80' },
-  { name: 'Cillian Murphy', role: 'Robert Fischer', image: 'https://images.unsplash.com/photo-1519345182560-3f2917c472ef?w=200&q=80' },
-];
-
-const similarMovies = [
-  { title: 'Interstellar', rating: 8.7, image: 'https://images.unsplash.com/photo-1444703686981-a3abbc4d4fe3?w=400&q=80' },
-  { title: 'The Matrix', rating: 8.7, image: 'https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?w=400&q=80' },
-  { title: 'Blade Runner 2049', rating: 8.0, image: 'https://images.unsplash.com/photo-1535016120720-40c646be5580?w=400&q=80' },
-  { title: 'Arrival', rating: 7.9, image: 'https://images.unsplash.com/photo-1614728853913-1e22ba0e982b?w=400&q=80' },
-  { title: 'Tenet', rating: 7.3, image: 'https://images.unsplash.com/photo-1536440136628-849c177e76a1?w=400&q=80' },
-  { title: 'The Prestige', rating: 8.5, image: 'https://images.unsplash.com/photo-1485846234645-a62644f84728?w=400&q=80' },
-];
+import { DetailSkeleton } from '@/components/LoadingSkeletons';
 
 export default function MovieDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const [movie, setMovie] = useState<typeof uniqueContent[0] | null>(null);
   const [isVideoModalOpen, setIsVideoModalOpen] = useState(false);
 
+  // Try fetching as movie first, then as TV show
+  const { data: movieData, isLoading: isLoadingMovie } = useMovieDetails(id);
+  const { data: tvShowData, isLoading: isLoadingTVShow } = useTVShowDetails(
+    // Only try TV show if movie returned no data
+    movieData && !movieData.data ? id : undefined
+  );
+
+  const isLoading = isLoadingMovie || isLoadingTVShow;
+
+  // Transform API response to our format
+  const { movie, cast, similarMovies, isTVShow } = useMemo(() => {
+    const rawMovie = movieData?.data || tvShowData?.data;
+    if (!rawMovie) return { movie: null, cast: [], similarMovies: [], isTVShow: false };
+
+    const transformed = toMovie(rawMovie);
+    const castData = (rawMovie.cast || rawMovie.cast_crew || []).map(toCast);
+    const similar = toMovieList(rawMovie.similar_movie || rawMovie.related_movie || rawMovie.similar_tvshow || rawMovie.related_tvshow || []);
+    const isShow = !!tvShowData?.data;
+
+    return { movie: transformed, cast: castData, similarMovies: similar, isTVShow: isShow };
+  }, [movieData, tvShowData]);
+
   useEffect(() => {
-    const found = uniqueContent.find(m => m.id === id);
-    if (found) {
-      setMovie(found);
-    } else {
-      // Fallback to featured movie if not found
-      setMovie(featuredMovie);
-    }
     window.scrollTo(0, 0);
   }, [id]);
+
+  if (isLoading) {
+    return <DetailSkeleton />;
+  }
 
   if (!movie) {
     return (
       <div className="min-h-screen bg-[#0F0F0F] flex items-center justify-center">
         <div className="text-center">
-          <div className="w-16 h-16 border-4 border-[#EAB308] border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-          <p className="text-white/60 animate-pulse">Loading Cinematic Experience...</p>
+          <h2 className="text-white text-2xl font-bold mb-2">Content not found</h2>
+          <p className="text-white/50 mb-4">The requested content could not be loaded.</p>
+          <button
+            onClick={() => navigate('/')}
+            className="px-6 py-3 bg-[#EAB308] text-black font-bold rounded-lg hover:bg-[#FACC15] transition-colors"
+          >
+            Go Home
+          </button>
         </div>
       </div>
     );
   }
-
-  const isTVShow = 'seasons' in movie;
 
   return (
     <div className="min-h-screen bg-[#0F0F0F] selection:bg-[#EAB308] selection:text-black">
@@ -183,55 +177,54 @@ export default function MovieDetailPage() {
             </section>
 
             {/* Cast Grid - Horizontal Scroll on Mobile */}
-            <section className="animate-slide-up [animation-delay:400ms]">
-              <div className="flex items-center justify-between mb-12">
-                <h2 className="text-4xl font-black text-white tracking-tight">Top Cast</h2>
-                <button className="text-[#EAB308] text-sm font-black hover:bg-[#EAB308]/10 px-4 py-2 rounded-lg transition-colors tracking-widest uppercase">Full Crew</button>
-              </div>
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-8">
-                {cast.map((actor, index) => (
-                  <div key={index} className="group cursor-pointer">
-                    <div className="aspect-[3/4] rounded-3xl overflow-hidden mb-5 border border-white/5 transition-all duration-700 group-hover:scale-[1.03] group-hover:shadow-[0_30px_60px_-15px_rgba(0,0,0,0.8)] group-hover:border-[#EAB308]/20 relative">
-                      <img
-                        src={actor.image}
-                        alt={actor.name}
-                        className="w-full h-full object-cover grayscale-[20%] group-hover:grayscale-0 transition-all duration-700"
-                      />
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+            {cast.length > 0 && (
+              <section className="animate-slide-up [animation-delay:400ms]">
+                <div className="flex items-center justify-between mb-12">
+                  <h2 className="text-4xl font-black text-white tracking-tight">Top Cast</h2>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-8">
+                  {cast.slice(0, 6).map((actor, index) => (
+                    <div key={index} className="group cursor-pointer">
+                      <div className="aspect-[3/4] rounded-3xl overflow-hidden mb-5 border border-white/5 transition-all duration-700 group-hover:scale-[1.03] group-hover:shadow-[0_30px_60px_-15px_rgba(0,0,0,0.8)] group-hover:border-[#EAB308]/20 relative">
+                        {actor.image ? (
+                          <img
+                            src={actor.image}
+                            alt={actor.name}
+                            className="w-full h-full object-cover grayscale-[20%] group-hover:grayscale-0 transition-all duration-700"
+                          />
+                        ) : (
+                          <div className="w-full h-full bg-white/10 flex items-center justify-center">
+                            <User className="w-12 h-12 text-white/30" />
+                          </div>
+                        )}
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                      </div>
+                      <p className="text-white font-black text-sm truncate group-hover:text-[#EAB308] transition-colors tracking-tight">{actor.name}</p>
+                      <p className="text-white/30 text-[10px] uppercase font-black tracking-[0.15em] mt-1.5">{actor.role}</p>
                     </div>
-                    <p className="text-white font-black text-sm truncate group-hover:text-[#EAB308] transition-colors tracking-tight">{actor.name}</p>
-                    <p className="text-white/30 text-[10px] uppercase font-black tracking-[0.15em] mt-1.5">{actor.role}</p>
-                  </div>
-                ))}
-              </div>
-            </section>
+                  ))}
+                </div>
+              </section>
+            )}
 
             {/* Recommendations Section */}
-            <section className="animate-slide-up [animation-delay:600ms]">
-              <div className="flex items-center gap-4 mb-12">
-                <div className="h-[2px] w-12 bg-[#EAB308]"></div>
-                <h2 className="text-4xl font-black text-white tracking-tight">Recommended For You</h2>
-              </div>
-              <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-8">
-                {similarMovies.map((similar, index) => (
-                  <MovieCard
-                    key={index}
-                    movie={{
-                      id: similar.title.toLowerCase().replace(/\s+/g, '-'),
-                      title: similar.title,
-                      imdbRating: similar.rating,
-                      posterUrl: similar.image,
-                      year: 2023,
-                      duration: '2h 15m',
-                      rating: 'PG-13',
-                      description: 'Similar movie recommendation based on your interest.',
-                      genres: ['Action', 'Thriller']
-                    }}
-                    index={index}
-                  />
-                ))}
-              </div>
-            </section>
+            {similarMovies.length > 0 && (
+              <section className="animate-slide-up [animation-delay:600ms]">
+                <div className="flex items-center gap-4 mb-12">
+                  <div className="h-[2px] w-12 bg-[#EAB308]"></div>
+                  <h2 className="text-4xl font-black text-white tracking-tight">Recommended For You</h2>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-8">
+                  {similarMovies.map((similar, index) => (
+                    <MovieCard
+                      key={similar.id}
+                      movie={similar}
+                      index={index}
+                    />
+                  ))}
+                </div>
+              </section>
+            )}
           </div>
 
           {/* Sidebar Section */}
@@ -252,9 +245,9 @@ export default function MovieDetailPage() {
                     { icon: Clock, label: 'Duration', value: movie.duration },
                     { icon: Globe, label: 'Origin', value: 'United States' },
                     { icon: Star, label: 'Critic Score', value: `${movie.imdbRating} / 10` },
-                    ...(isTVShow ? [
-                      { icon: Film, label: 'Seasons', value: (movie as any).seasons },
-                      { icon: User, label: 'Network', value: (movie as any).network }
+                    ...(isTVShow && tvShowData?.data ? [
+                      { icon: Film, label: 'Seasons', value: tvShowData.data.total_season || tvShowData.data.seasons || 'N/A' },
+                      { icon: User, label: 'Network', value: tvShowData.data.network || 'N/A' }
                     ] : [])
                   ].map((item, idx) => (
                     <div key={idx} className="flex items-center gap-5 group/item">

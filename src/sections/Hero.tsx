@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Play, Info, Star, Volume2, VolumeX } from 'lucide-react';
 import type { Movie } from '@/types';
-import { featuredMovie } from '@/data/movies';
 import { useLanguage } from '@/contexts/LanguageContext';
 import VideoModal from '@/components/VideoModal';
 
@@ -9,8 +8,19 @@ interface HeroProps {
   movie?: Movie;
 }
 
-export default function Hero({ movie = featuredMovie }: HeroProps) {
+export default function Hero({ movie }: HeroProps) {
   const { t } = useLanguage();
+
+  if (!movie) {
+    return (
+      <section className="relative w-full h-[100dvh] min-h-[500px] lg:min-h-[600px] overflow-hidden bg-[#181818]">
+        <div className="absolute inset-0 bg-gradient-to-t from-[#181818] via-[#181818]/40 to-[#222]" />
+        <div className="relative h-full flex items-center justify-center">
+          <div className="w-10 h-10 border-2 border-[#EAB308]/20 border-t-[#EAB308] rounded-full animate-spin" />
+        </div>
+      </section>
+    );
+  }
   const [isLoaded, setIsLoaded] = useState(false);
   const [isMuted, setIsMuted] = useState(true);
   const heroRef = useRef<HTMLDivElement>(null);

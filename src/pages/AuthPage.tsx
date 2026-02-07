@@ -1,16 +1,69 @@
 import { useState } from 'react';
-import { Mail, Lock, User, Eye, EyeOff, ArrowRight, Chrome } from 'lucide-react';
+import { Mail, Lock, User, Eye, EyeOff, ArrowRight, Chrome, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '@/contexts/AuthContext';
 
 const AuthPage = () => {
     const [isLogin, setIsLogin] = useState(true);
     const [showPassword, setShowPassword] = useState(false);
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [errorMessage, setErrorMessage] = useState('');
+    const [formData, setFormData] = useState({
+        name: '',
+        email: '',
+        password: '',
+    });
     const navigate = useNavigate();
+    const { login, register } = useAuth();
 
-    const toggleAuthMode = () => setIsLogin(!isLogin);
+    const toggleAuthMode = () => {
+        setIsLogin(!isLogin);
+        setErrorMessage('');
+    };
+
+    const handleInputChange = (field: string, value: string) => {
+        setFormData(prev => ({ ...prev, [field]: value }));
+        setErrorMessage('');
+    };
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setIsSubmitting(true);
+        setErrorMessage('');
+
+        try {
+            if (isLogin) {
+                const result = await login({
+                    email: formData.email,
+                    password: formData.password,
+                });
+                if (result.success) {
+                    navigate('/');
+                } else {
+                    setErrorMessage(result.message);
+                }
+            } else {
+                const result = await register({
+                    name: formData.name,
+                    email: formData.email,
+                    password: formData.password,
+                    password_confirmation: formData.password,
+                });
+                if (result.success) {
+                    navigate('/');
+                } else {
+                    setErrorMessage(result.message);
+                }
+            }
+        } catch {
+            setErrorMessage('An unexpected error occurred. Please try again.');
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
 
     return (
         <div className="relative min-h-screen w-full flex items-center justify-center overflow-hidden bg-[#0A0A0A]">
@@ -38,8 +91,15 @@ const AuthPage = () => {
                         </p>
                     </div>
 
+                    {/* Error Message */}
+                    {errorMessage && (
+                        <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-4 mb-4">
+                            <p className="text-red-400 text-sm font-medium">{errorMessage}</p>
+                        </div>
+                    )}
+
                     {/* Form */}
-                    <form className="space-y-5" onSubmit={(e) => { e.preventDefault(); navigate('/'); }}>
+                    <form className="space-y-5" onSubmit={handleSubmit}>
                         {!isLogin && (
                             <div className="space-y-2">
                                 <label className="text-sm font-medium text-gray-300 ml-1">Full Name</label>
@@ -47,7 +107,10 @@ const AuthPage = () => {
                                     <User className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500 group-focus-within:text-[#EAB308] transition-colors" />
                                     <Input
                                         placeholder="John Doe"
+                                        value={formData.name}
+                                        onChange={(e) => handleInputChange('name', e.target.value)}
                                         className="pl-12 bg-white/5 border-white/10 h-12 rounded-xl focus:border-[#EAB308]/50 focus:ring-[#EAB308]/20 transition-all placeholder:text-gray-600"
+                                        required
                                     />
                                 </div>
                             </div>
@@ -60,7 +123,10 @@ const AuthPage = () => {
                                 <Input
                                     type="email"
                                     placeholder="name@example.com"
+                                    value={formData.email}
+                                    onChange={(e) => handleInputChange('email', e.target.value)}
                                     className="pl-12 bg-white/5 border-white/10 h-12 rounded-xl focus:border-[#EAB308]/50 focus:ring-[#EAB308]/20 transition-all placeholder:text-gray-600"
+                                    required
                                 />
                             </div>
                         </div>
@@ -79,7 +145,11 @@ const AuthPage = () => {
                                 <Input
                                     type={showPassword ? "text" : "password"}
                                     placeholder="••••••••"
+                                    value={formData.password}
+                                    onChange={(e) => handleInputChange('password', e.target.value)}
                                     className="pl-12 pr-12 bg-white/5 border-white/10 h-12 rounded-xl focus:border-[#EAB308]/50 focus:ring-[#EAB308]/20 transition-all placeholder:text-gray-600"
+                                    required
+                                    minLength={6}
                                 />
                                 <button
                                     type="button"

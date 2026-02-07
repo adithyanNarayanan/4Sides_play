@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import type { MovieCategory } from '@/types';
-import { categories } from '@/data/movies';
+import { useGenreList } from '@/hooks/useApi';
+import { CategoriesSkeleton } from '@/components/LoadingSkeletons';
 
 interface CategoryCardProps {
   category: MovieCategory;
@@ -47,8 +48,9 @@ function CategoryCard({ category, index }: CategoryCardProps) {
     setTransform({ x: 0, y: 0, rotateX: 0, rotateY: 0 });
   };
 
-  // Get a random movie poster from the category
-  const backgroundImage = category.movies[0]?.posterUrl || '';
+  // Get background image from genre image or movie poster
+  const genreImage = (category as MovieCategory & { image?: string }).image;
+  const backgroundImage = genreImage || category.movies[0]?.posterUrl || '';
 
   return (
     <div
@@ -111,6 +113,7 @@ function CategoryCard({ category, index }: CategoryCardProps) {
 export default function Categories() {
   const [isVisible, setIsVisible] = useState(false);
   const sectionRef = useRef<HTMLDivElement>(null);
+  const { data: genreData, isLoading } = useGenreList();
 
   useEffect(() => {
     const observer = new IntersectionObserver(
@@ -129,6 +132,21 @@ export default function Categories() {
 
     return () => observer.disconnect();
   }, []);
+
+  // Transform genre API data to MovieCategory format
+  const categories: MovieCategory[] = (genreData?.data || []).map((genre) => ({
+    id: String(genre.id),
+    name: genre.name,
+    movies: [], // Genres API only returns names, movies are loaded per-genre
+  }));
+
+  if (isLoading) {
+    return <CategoriesSkeleton />;
+  }
+
+  if (categories.length === 0) {
+    return null;
+  }
 
   return (
     <section ref={sectionRef} className="py-16 px-4 sm:px-6 lg:px-8 xl:px-12">

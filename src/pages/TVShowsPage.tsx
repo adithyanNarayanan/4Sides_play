@@ -1,7 +1,9 @@
 import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Search, SlidersHorizontal, ChevronDown, Grid, List, Star, Play, CheckCircle, XCircle } from 'lucide-react';
-import { trendingTVShows, allTVShows, featuredTVShow, tvShowCategories } from '@/data/tvShows';
+import { useTVShowList, useGenreList } from '@/hooks/useApi';
+import { toTVShowList } from '@/lib/adapters';
+import { GridSkeleton, HeroSkeleton } from '@/components/LoadingSkeletons';
 import VideoModal from '@/components/VideoModal';
 // TV Shows Page
 
@@ -25,8 +27,22 @@ export default function TVShowsPage() {
   const [showFilters, setShowFilters] = useState(false);
   const [isVideoModalOpen, setIsVideoModalOpen] = useState(false);
 
-  const allShows = [...trendingTVShows, ...allTVShows];
-  const uniqueShows = Array.from(new Map(allShows.map(s => [s.id, s])).values());
+  const { data: tvShowData, isLoading } = useTVShowList();
+  const { data: genreData } = useGenreList();
+
+  // Transform API data
+  const allApiShows = useMemo(() => {
+    return toTVShowList(tvShowData?.data || []);
+  }, [tvShowData]);
+
+  // Build genre list from API
+  const tvShowCategories = useMemo(() => {
+    const genres = (genreData?.data || []).map(g => g.name);
+    return ['All', ...genres];
+  }, [genreData]);
+
+  const uniqueShows = allApiShows;
+  const featuredTVShow = allApiShows.length > 0 ? allApiShows[0] : null;
 
   const filteredShows = useMemo(() => {
     let shows = [...uniqueShows];
@@ -89,6 +105,28 @@ export default function TVShowsPage() {
     }
   };
 
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-[#000000]">
+        <HeroSkeleton />
+        <div className="pt-8 pb-16 max-w-[1920px] mx-auto px-4 sm:px-6 lg:px-8 xl:px-12">
+          <GridSkeleton count={18} />
+        </div>
+      </div>
+    );
+  }
+
+  if (!featuredTVShow) {
+    return (
+      <div className="min-h-screen bg-[#000000] flex items-center justify-center">
+        <div className="text-center">
+          <h2 className="text-white text-2xl font-bold mb-2">No TV shows available</h2>
+          <p className="text-white/50">Please check back later.</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-[#000000]">
       {/* Featured Show Hero */}
@@ -114,9 +152,15 @@ export default function TVShowsPage() {
               <span className="text-white/40">|</span>
               <span className="text-white/70">{featuredTVShow.year}</span>
               <span className="text-white/40">|</span>
-              <span className="text-white/70">{featuredTVShow.seasons} Seasons</span>
-              <span className="text-white/40">|</span>
-              <span className="text-white/70">{featuredTVShow.episodes} Episodes</span>
+              {featuredTVShow.seasons > 0 && (
+                <>
+                  <span className="text-white/70">{featuredTVShow.seasons} Seasons</span>
+                  <span className="text-white/40">|</span>
+                </>
+              )}
+              {featuredTVShow.episodes > 0 && (
+                <span className="text-white/70">{featuredTVShow.episodes} Episodes</span>
+              )}
               <span className="text-white/40">|</span>
               <div className="flex items-center gap-1">
                 <Star className="w-4 h-4 text-yellow-400 fill-yellow-400" />
@@ -272,7 +316,9 @@ export default function TVShowsPage() {
 
         {/* Shows Grid/List */}
         <div className="max-w-[1920px] mx-auto px-4 sm:px-6 lg:px-8 xl:px-12">
-          {viewMode === 'grid' ? (
+          {isLoading ? (
+            <GridSkeleton count={18} />
+          ) : viewMode === 'grid' ? (
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 sm:gap-6">
               {filteredShows.map((show, index) => (
                 <div

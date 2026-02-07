@@ -1,12 +1,10 @@
 import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Search, SlidersHorizontal, ChevronDown, Grid, List, Star, Clock, Calendar } from 'lucide-react';
-import { trendingMovies, top10Movies, categories } from '@/data/movies';
+import { useMovieList, useGenreList } from '@/hooks/useApi';
+import { toMovieList } from '@/lib/adapters';
+import { GridSkeleton } from '@/components/LoadingSkeletons';
 // Movies Page
-
-const allMovies = [...trendingMovies, ...top10Movies, ...categories.flatMap(c => c.movies)];
-
-const uniqueMovies = Array.from(new Map(allMovies.map(m => [m.id, m])).values());
 
 const sortOptions = [
   { value: 'popular', label: 'Most Popular' },
@@ -17,7 +15,6 @@ const sortOptions = [
 ];
 
 const filterOptions = {
-  genres: ['All', 'Action', 'Adventure', 'Animation', 'Biography', 'Comedy', 'Crime', 'Drama', 'Fantasy', 'Horror', 'Mystery', 'Romance', 'Sci-Fi', 'Thriller'],
   years: ['All', '2025', '2024', '2023', '2022', '2021', '2020', '2019', '2010s', '2000s', 'Classic'],
   ratings: ['All', '9+', '8+', '7+', '6+', 'Any'],
 };
@@ -32,8 +29,22 @@ export default function MoviesPage() {
   const [selectedRating, setSelectedRating] = useState('All');
   const [showFilters, setShowFilters] = useState(false);
 
+  const { data: movieListData, isLoading } = useMovieList();
+  const { data: genreData } = useGenreList();
+
+  // Transform API data to our Movie type
+  const apiMovies = useMemo(() => {
+    return toMovieList(movieListData?.data || []);
+  }, [movieListData]);
+
+  // Build genre list from API
+  const apiGenres = useMemo(() => {
+    const genres = (genreData?.data || []).map(g => g.name);
+    return ['All', ...genres];
+  }, [genreData]);
+
   const filteredMovies = useMemo(() => {
-    let movies = [...uniqueMovies];
+    let movies = [...apiMovies];
 
     // Search filter
     if (searchQuery) {
@@ -177,7 +188,7 @@ export default function MoviesPage() {
               <div>
                 <label className="text-white/60 text-sm mb-2 block">Genre</label>
                 <div className="flex flex-wrap gap-2">
-                  {filterOptions.genres.map(genre => (
+                  {apiGenres.map(genre => (
                     <button
                       key={genre}
                       onClick={() => setSelectedGenre(genre)}
@@ -255,7 +266,9 @@ export default function MoviesPage() {
 
       {/* Movies Grid/List */}
       <div className="max-w-[1920px] mx-auto px-4 sm:px-6 lg:px-8 xl:px-12">
-        {viewMode === 'grid' ? (
+        {isLoading ? (
+          <GridSkeleton count={18} />
+        ) : viewMode === 'grid' ? (
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 sm:gap-6">
             {filteredMovies.map((movie, index) => (
               <div
