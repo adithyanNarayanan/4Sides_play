@@ -1,20 +1,26 @@
-import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState } from 'react';
 import { useLanguage } from '@/contexts/LanguageContext';
-import { useAuth } from '@/contexts/AuthContext';
-import { useUserDetail, usePlanList, useContinueWatchList } from '@/hooks/useApi';
-import { updateProfile } from '@/lib/api';
-import { User, Settings, Bell, Shield, CreditCard, HelpCircle, LogOut, Edit2, Check, X, ChevronRight, Star, Clock, Eye, Heart, Loader2 } from 'lucide-react';
+import { User, Settings, Bell, Shield, CreditCard, HelpCircle, LogOut, Edit2, Check, X, ChevronRight, Star, Clock, Eye, Heart } from 'lucide-react';
+
+
+
+const watchStats = {
+  totalWatched: 156,
+  hoursWatched: 342,
+  favoriteGenre: 'Sci-Fi',
+  streak: 12,
+};
+
+const recentActivity = [
+  { type: 'watched', title: 'Dune: Part Two', time: '2 hours ago', icon: Eye },
+  { type: 'rated', title: 'Oppenheimer', time: 'Yesterday', icon: Star },
+  { type: 'added', title: 'The Witcher S3', time: '2 days ago', icon: Heart },
+  { type: 'watched', title: 'Stranger Things S4', time: '3 days ago', icon: Eye },
+];
 
 export default function ProfilePage() {
   const { t } = useLanguage();
-  const navigate = useNavigate();
-  const { user, isAuthenticated, logout } = useAuth();
-  const { data: userDetail, isLoading: isLoadingUser } = useUserDetail();
-  const { data: planData } = usePlanList();
-  const { data: continueWatchData } = useContinueWatchList();
   const [activeTab, setActiveTab] = useState('overview');
-  const [isSavingName, setIsSavingName] = useState(false);
 
   const profileTabs = [
     { id: 'overview', label: t('overview'), icon: User },
@@ -24,62 +30,18 @@ export default function ProfilePage() {
     { id: 'billing', label: t('billing'), icon: CreditCard },
   ];
   const [isEditing, setIsEditing] = useState(false);
-
-  // Use API user data or auth context user data
-  const userData = userDetail?.data || user;
-  const displayName = userData?.name || 'User';
-  const userEmail = userData?.email || '';
-  const profileImage = userDetail?.data?.profile_image || (user as { profileImage?: string })?.profileImage;
-
+  const [displayName, setDisplayName] = useState('Alex Johnson');
   const [tempName, setTempName] = useState(displayName);
 
-  // Redirect to auth if not logged in
-  useEffect(() => {
-    if (!isAuthenticated) {
-      navigate('/auth');
-    }
-  }, [isAuthenticated, navigate]);
-
-  // Watch stats from continue watch data
-  const watchStats = {
-    totalWatched: continueWatchData?.data?.length || 0,
-    hoursWatched: 0,
-    favoriteGenre: '--',
-    streak: 0,
-  };
-
-  // Plans from API
-  const plans = planData?.data || [];
-
-  const handleSaveName = async () => {
-    setIsSavingName(true);
-    try {
-      await updateProfile({ name: tempName });
-      setIsEditing(false);
-    } catch {
-      // Silently fail, keep editing
-    } finally {
-      setIsSavingName(false);
-    }
+  const handleSaveName = () => {
+    setDisplayName(tempName);
+    setIsEditing(false);
   };
 
   const handleCancelEdit = () => {
     setTempName(displayName);
     setIsEditing(false);
   };
-
-  const handleLogout = async () => {
-    await logout();
-    navigate('/');
-  };
-
-  if (isLoadingUser && isAuthenticated) {
-    return (
-      <div className="min-h-screen bg-[#0F0F0F] flex items-center justify-center">
-        <div className="w-10 h-10 border-2 border-[#EAB308]/20 border-t-[#EAB308] rounded-full animate-spin" />
-      </div>
-    );
-  }
 
   const renderContent = () => {
     const cardBaseClass = "group relative overflow-hidden bg-[#1A1A1A]/60 backdrop-blur-xl border border-white/10 rounded-2xl p-6 hover:border-[#EAB308]/30 transition-all duration-300 shadow-lg shadow-black/20";
@@ -176,7 +138,7 @@ export default function ProfilePage() {
                 <div className="flex items-center justify-between p-4 rounded-xl hover:bg-white/5 transition-colors group/setting">
                   <div>
                     <p className="text-white font-medium">Email</p>
-                    <p className="text-white/50 text-sm">{userEmail || 'Not set'}</p>
+                    <p className="text-white/50 text-sm">alex.johnson@email.com</p>
                   </div>
                   <button className="px-4 py-2 rounded-lg bg-white/5 text-white text-sm font-medium hover:bg-[#EAB308] hover:text-white transition-all opacity-0 group-hover/setting:opacity-100">Change</button>
                 </div>
@@ -337,30 +299,17 @@ export default function ProfilePage() {
                 </span>
               </div>
 
-              {plans.length > 0 ? (
-                <div className="relative overflow-hidden bg-gradient-to-br from-[#EAB308] to-[#D97706] rounded-xl p-8 mb-8 text-center shadow-xl shadow-[#EAB308]/20">
-                  <div className="absolute top-0 right-0 p-32 bg-white/10 rounded-full blur-3xl -mr-16 -mt-16" />
-                  <div className="relative z-10">
-                    <p className="text-white/80 font-medium mb-1">{plans[0].name}</p>
-                    <div className="flex items-center justify-center gap-1 mb-2">
-                      <span className="text-5xl font-bold text-white">{plans[0].price}</span>
-                      {plans[0].duration_type && (
-                        <span className="text-white/60 self-end mb-2">/{plans[0].duration_type}</span>
-                      )}
-                    </div>
-                    {plans[0].description && (
-                      <p className="text-white/60 text-sm">{plans[0].description}</p>
-                    )}
+              <div className="relative overflow-hidden bg-gradient-to-br from-[#EAB308] to-[#D97706] rounded-xl p-8 mb-8 text-center shadow-xl shadow-[#EAB308]/20">
+                <div className="absolute top-0 right-0 p-32 bg-white/10 rounded-full blur-3xl -mr-16 -mt-16" />
+                <div className="relative z-10">
+                  <p className="text-white/80 font-medium mb-1">Monthly Subscription</p>
+                  <div className="flex items-center justify-center gap-1 mb-2">
+                    <span className="text-5xl font-bold text-white">$15.99</span>
+                    <span className="text-white/60 self-end mb-2">/mo</span>
                   </div>
+                  <p className="text-white/60 text-sm">Next billing date: February 15, 2026</p>
                 </div>
-              ) : (
-                <div className="relative overflow-hidden bg-gradient-to-br from-[#EAB308] to-[#D97706] rounded-xl p-8 mb-8 text-center shadow-xl shadow-[#EAB308]/20">
-                  <div className="relative z-10">
-                    <p className="text-white/80 font-medium mb-1">No active plan</p>
-                    <p className="text-white/60 text-sm">Browse available plans to get started</p>
-                  </div>
-                </div>
-              )}
+              </div>
 
               <div className="flex flex-wrap gap-4">
                 <button className="flex-1 px-6 py-3 bg-white text-black font-bold rounded-xl hover:bg-gray-100 transition-colors">
@@ -445,11 +394,7 @@ export default function ProfilePage() {
             <div className="relative group">
               <div className="w-32 h-32 sm:w-40 sm:h-40 rounded-full p-1 bg-[#1A1A1A] relative z-10">
                 <div className="w-full h-full rounded-full bg-gradient-to-br from-[#EAB308] to-[#FACC15] flex items-center justify-center overflow-hidden relative group-hover:scale-[1.02] transition-transform duration-500">
-                  {profileImage ? (
-                    <img src={profileImage} alt={displayName} className="w-full h-full object-cover relative z-10" />
-                  ) : (
-                    <User className="w-16 h-16 text-white relative z-10" />
-                  )}
+                  <User className="w-16 h-16 text-white relative z-10" />
                   <div className="absolute inset-0 bg-white/20 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
                 </div>
               </div>
@@ -470,14 +415,9 @@ export default function ProfilePage() {
                   />
                   <button
                     onClick={handleSaveName}
-                    disabled={isSavingName}
-                    className="w-10 h-10 rounded-full bg-green-500/20 flex items-center justify-center hover:bg-green-500/30 transition-colors disabled:opacity-50"
+                    className="w-10 h-10 rounded-full bg-green-500/20 flex items-center justify-center hover:bg-green-500/30 transition-colors"
                   >
-                    {isSavingName ? (
-                      <Loader2 className="w-5 h-5 text-green-400 animate-spin" />
-                    ) : (
-                      <Check className="w-5 h-5 text-green-400" />
-                    )}
+                    <Check className="w-5 h-5 text-green-400" />
                   </button>
                   <button
                     onClick={handleCancelEdit}
@@ -498,20 +438,15 @@ export default function ProfilePage() {
                 </div>
               )}
               <div className="flex items-center justify-center sm:justify-start gap-4 text-white/60 text-sm">
-                {plans.length > 0 && (
-                  <span className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/5 border border-white/5">
-                    <Star className="w-3 h-3 text-yellow-500" />
-                    {plans[0].name}
-                  </span>
-                )}
-                {userEmail && <span>{userEmail}</span>}
+                <span className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/5 border border-white/5">
+                  <Star className="w-3 h-3 text-yellow-500" />
+                  Premium Member
+                </span>
+                <span>Member since 2024</span>
               </div>
             </div>
 
-            <button
-              onClick={handleLogout}
-              className="flex items-center gap-2 px-6 py-3 bg-red-500/10 text-red-400 font-medium rounded-xl hover:bg-red-500/20 transition-all hover:scale-105 border border-red-500/10"
-            >
+            <button className="flex items-center gap-2 px-6 py-3 bg-red-500/10 text-red-400 font-medium rounded-xl hover:bg-red-500/20 transition-all hover:scale-105 border border-red-500/10">
               <LogOut className="w-5 h-5" />
               Sign Out
             </button>
